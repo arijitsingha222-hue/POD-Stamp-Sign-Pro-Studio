@@ -24,18 +24,26 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Extract and Repair Config
+      - name: Extract, Overwrite & Repair
         run: |
           mkdir -p extracted
           unzip -q POD_Stamp_Sign_Pro_Studio_Android_Project.zip -d extracted
 
-          # বিল্ট-ইন Activity ব্যবহার করে MainActivity.kt তৈরি (কোনো এক্সটার্নাল লাইব্রেরি ছাড়াই)
+          # ভুল packages বা old kotlin/java ফাইল পুরোপুরি মুছে দিন যাতে ডুপ্লিকেট না থাকে
+          rm -rf extracted/PODStampSignProStudio-Android/app/src/main/java/in/geetanjali/podstampsignpro
+          rm -rf extracted/PODStampSignProStudio-Android/app/src/main/java/in/geetanjali/pod_stamp_sign_pro
+          rm -rf extracted/PODStampSignProStudio-Android/app/src/main/java/in/geetanjali/POD_Stamp_Sign_Pro_Studio_Android_Project
+          
+          # নতুন সঠিক ডিরেক্টরি স্ট্রাকচার তৈরি করুন
           mkdir -p extracted/PODStampSignProStudio-Android/app/src/main/java/in/geetanjali/podstampsignpro
+
+          # একেবারে নতুন MainActivity.kt ফাইল সঠিক প্যাকেজে বসান (AppCompatActivity ও AndroidX সাপোর্ট ছাড়া সরাসরি)
           cat << 'EOF' > extracted/PODStampSignProStudio-Android/app/src/main/java/in/geetanjali/podstampsignpro/MainActivity.kt
           package in.geetanjali.podstampsignpro
 
           import android.annotation.SuppressLint
           import android.app.Activity
+          import android.content.Intent
           import android.net.Uri
           import android.os.Bundle
           import android.webkit.ValueCallback
@@ -43,7 +51,6 @@ jobs:
           import android.webkit.WebSettings
           import android.webkit.WebView
           import android.webkit.WebViewClient
-          import android.content.Intent
 
           class MainActivity : Activity() {
               private lateinit var webView: WebView
@@ -101,12 +108,31 @@ jobs:
           }
           EOF
 
-          # Gradle Java 17 কনফিগারেশন
-          cat << 'EOF' >> extracted/PODStampSignProStudio-Android/app/build.gradle
+          # ভুল namespace এরর এড়াতে gradle ওভাররাইট করা
+          cat << 'EOF' > extracted/PODStampSignProStudio-Android/app/build.gradle
+          plugins {
+              id 'com.android.application'
+              id 'kotlin-android'
+          }
 
           android {
-              namespace "in.geetanjali.podstampsignpro"
+              namespace 'in.geetanjali.podstampsignpro'
+              compileSdk 34
 
+              defaultConfig {
+                  applicationId "in.geetanjali.podstampsignpro"
+                  minSdk 21
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                  }
+              }
               compileOptions {
                   sourceCompatibility JavaVersion.VERSION_17
                   targetCompatibility JavaVersion.VERSION_17
@@ -115,6 +141,30 @@ jobs:
                   jvmTarget = '17'
               }
           }
+
+          dependencies {
+              implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.0"
+          }
+          EOF
+
+          # settings.gradle ফিক্সিং (ভুল সাব ফোল্ডার রেফারেন্স বা নাম থাকলে ড্যামেজ ঠিক করার জন্য)
+          cat << 'EOF' > extracted/PODStampSignProStudio-Android/settings.gradle
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "PODStampSignProStudio"
+          include ':app'
           EOF
 
       - name: Build Debug APK
