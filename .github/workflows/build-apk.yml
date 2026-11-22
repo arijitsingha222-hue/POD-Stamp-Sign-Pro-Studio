@@ -24,13 +24,58 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Extract and Fix JVM Target
+      - name: Extract and Repair Config
         run: |
           mkdir -p extracted
           unzip -q POD_Stamp_Sign_Pro_Studio_Android_Project.zip -d extracted
+          
+          # MainActivity.kt ফিক্স করা এবং প্যাকেজ নেম সঠিক করা
+          mkdir -p extracted/PODStampSignProStudio-Android/app/src/main/java/in/geetanjali/podstampsignpro
+          cat << 'EOF' > extracted/PODStampSignProStudio-Android/app/src/main/java/in/geetanjali/podstampsignpro/MainActivity.kt
+          package in.geetanjali.podstampsignpro
+
+          import android.annotation.SuppressLint
+          import android.os.Bundle
+          import android.webkit.WebSettings
+          import android.webkit.WebView
+          import android.webkit.WebViewClient
+          import androidx.appcompat.app.AppCompatActivity
+
+          class MainActivity : AppCompatActivity() {
+              private lateinit var webView: WebView
+
+              @SuppressLint("SetJavaScriptEnabled")
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  webView = WebView(this)
+                  webView.settings.apply {
+                      javaScriptEnabled = true
+                      domStorageEnabled = true
+                      allowFileAccess = true
+                      allowContentAccess = true
+                      mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                  }
+                  webView.webViewClient = WebViewClient()
+                  webView.loadUrl("file:///android_asset/index.html")
+                  setContentView(webView)
+              }
+
+              override fun onBackPressed() {
+                  if (webView.canGoBack()) {
+                      webView.goBack()
+                  } else {
+                      super.onBackPressed()
+                  }
+              }
+          }
+          EOF
+
+          # Gradle Java 17 এবং সঠিক প্যাকেজ নেম ফোর্স করা
           cat << 'EOF' >> extracted/PODStampSignProStudio-Android/app/build.gradle
 
           android {
+              namespace "in.geetanjali.podstampsignpro"
+              
               compileOptions {
                   sourceCompatibility JavaVersion.VERSION_17
                   targetCompatibility JavaVersion.VERSION_17
