@@ -28,21 +28,26 @@ jobs:
         run: |
           mkdir -p extracted
           unzip -q POD_Stamp_Sign_Pro_Studio_Android_Project.zip -d extracted
-          
-          # MainActivity.kt ফিক্স করা এবং প্যাকেজ নেম সঠিক করা
+
+          # বিল্ট-ইন Activity ব্যবহার করে MainActivity.kt তৈরি (কোনো এক্সটার্নাল লাইব্রেরি ছাড়াই)
           mkdir -p extracted/PODStampSignProStudio-Android/app/src/main/java/in/geetanjali/podstampsignpro
           cat << 'EOF' > extracted/PODStampSignProStudio-Android/app/src/main/java/in/geetanjali/podstampsignpro/MainActivity.kt
           package in.geetanjali.podstampsignpro
 
           import android.annotation.SuppressLint
+          import android.app.Activity
+          import android.net.Uri
           import android.os.Bundle
+          import android.webkit.ValueCallback
+          import android.webkit.WebChromeClient
           import android.webkit.WebSettings
           import android.webkit.WebView
           import android.webkit.WebViewClient
-          import androidx.appcompat.app.AppCompatActivity
+          import android.content.Intent
 
-          class MainActivity : AppCompatActivity() {
+          class MainActivity : Activity() {
               private lateinit var webView: WebView
+              private var filePathCallback: ValueCallback<Array<Uri>>? = null
 
               @SuppressLint("SetJavaScriptEnabled")
               override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,10 +61,36 @@ jobs:
                       mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                   }
                   webView.webViewClient = WebViewClient()
+                  webView.webChromeClient = object : WebChromeClient() {
+                      override fun onShowFileChooser(
+                          webView: WebView?,
+                          filePathCallback: ValueCallback<Array<Uri>>?,
+                          fileChooserParams: FileChooserParams?
+                      ): Boolean {
+                          this@MainActivity.filePathCallback?.onReceiveValue(null)
+                          this@MainActivity.filePathCallback = filePathCallback
+                          val intent = fileChooserParams?.createIntent() ?: Intent(Intent.ACTION_GET_CONTENT).apply {
+                              addCategory(Intent.CATEGORY_OPENABLE)
+                              type = "*/*"
+                          }
+                          startActivityForResult(intent, 1001)
+                          return true
+                      }
+                  }
                   webView.loadUrl("file:///android_asset/index.html")
                   setContentView(webView)
               }
 
+              override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+                  if (requestCode == 1001) {
+                      val results = if (resultCode == RESULT_OK && data?.data != null) arrayOf(data.data!!) else null
+                      filePathCallback?.onReceiveValue(results)
+                      filePathCallback = null
+                  }
+                  super.onActivityResult(requestCode, resultCode, data)
+              }
+
+              @Deprecated("Deprecated in Java")
               override fun onBackPressed() {
                   if (webView.canGoBack()) {
                       webView.goBack()
@@ -70,12 +101,12 @@ jobs:
           }
           EOF
 
-          # Gradle Java 17 এবং সঠিক প্যাকেজ নেম ফোর্স করা
+          # Gradle Java 17 কনফিগারেশন
           cat << 'EOF' >> extracted/PODStampSignProStudio-Android/app/build.gradle
 
           android {
               namespace "in.geetanjali.podstampsignpro"
-              
+
               compileOptions {
                   sourceCompatibility JavaVersion.VERSION_17
                   targetCompatibility JavaVersion.VERSION_17
