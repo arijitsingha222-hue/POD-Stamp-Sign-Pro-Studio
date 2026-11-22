@@ -24,14 +24,19 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Extract and Fix Project
+      - name: Extract and Fix Package Name
         run: |
           mkdir -p extracted
           unzip -q POD_Stamp_Sign_Pro_Studio_Android_Project.zip -d extracted
           rm -rf extracted/PODStampSignProStudio-Android/app/src/main/java
-          mkdir -p extracted/PODStampSignProStudio-Android/app/src/main/java/in/geetanjali/podstampsignpro
+          mkdir -p extracted/PODStampSignProStudio-Android/app/src/main/java/com/geetanjali/podstampsignpro
+
+          sed -i 's/in\.geetanjali\.podstampsignpro/com.geetanjali.podstampsignpro/g' extracted/PODStampSignProStudio-Android/app/src/main/AndroidManifest.xml
+          sed -i 's/in\.geetanjali\.podstampsignpro/com.geetanjali.podstampsignpro/g' extracted/PODStampSignProStudio-Android/app/build.gradle
+
           python3 -c '
-          code = """package in.geetanjali.podstampsignpro
+          import textwrap
+          code = """package com.geetanjali.podstampsignpro
 
           import android.annotation.SuppressLint
           import android.app.Activity
@@ -99,10 +104,10 @@ jobs:
               }
           }
           """
-          import textwrap
-          with open("extracted/PODStampSignProStudio-Android/app/src/main/java/in/geetanjali/podstampsignpro/MainActivity.kt", "w") as f:
+          with open("extracted/PODStampSignProStudio-Android/app/src/main/java/com/geetanjali/podstampsignpro/MainActivity.kt", "w") as f:
               f.write(textwrap.dedent(code).lstrip())
           '
+
           python3 -c '
           import textwrap
           gradle_code = """
