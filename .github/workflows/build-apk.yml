@@ -1,4 +1,3 @@
-
 name: Build POD Stamp Sign Pro APK
 
 on:
@@ -17,8 +16,11 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
+          distribution: 'temurin'
           java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -27,17 +29,17 @@ jobs:
 
       - name: Extract Android project
         run: |
-          mkdir extracted
+          mkdir -p extracted
           unzip -q POD_Stamp_Sign_Pro_Studio_Android_Project.zip -d extracted
 
-      - name: Build APK
+      - name: Build Debug APK
         run: |
           cd extracted/PODStampSignProStudio-Android
-          gradle --no-daemon assembleDebug
+          gradle assembleDebug --no-daemon --stacktrace
 
-      - name: Upload APK
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: POD-Stamp-Sign-Pro-Studio-APK
-          path: extracted/PODStampSignProStudio-Android/app/build/outputs/apk/debug/app-debug.apk
+          name: POD-Stamp-Sign-Pro-APK
+          path: extracted/PODStampSignProStudio-Android/app/build/outputs/apk/debug/*.apk
           
