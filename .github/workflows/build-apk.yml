@@ -24,11 +24,17 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Extract and Build With Download Fix
+      - name: Extract and Fix Upload, Download & Assets
         run: |
           mkdir -p extracted
           unzip -q POD_Stamp_Sign_Pro_Studio_Android_Project.zip -d extracted
-          cp -f index.html extracted/PODStampSignProStudio-Android/app/src/main/assets/index.html
+
+          # যদি repo-তে নতুন index.html থাকে তবে সেটি assets-এ কপি করবে
+          if [ -f "index.html" ]; then
+            mkdir -p extracted/PODStampSignProStudio-Android/app/src/main/assets
+            cp -f index.html extracted/PODStampSignProStudio-Android/app/src/main/assets/index.html
+          fi
+
           rm -rf extracted/PODStampSignProStudio-Android/app/src/main/java
           mkdir -p extracted/PODStampSignProStudio-Android/app/src/main/java/com/geetanjali/podstampsignpro
 
@@ -41,6 +47,7 @@ jobs:
 
           import android.annotation.SuppressLint
           import android.app.Activity
+          import android.content.ActivityNotFoundException
           import android.content.ContentValues
           import android.content.Context
           import android.content.Intent
@@ -104,11 +111,11 @@ jobs:
                           }
 
                           runOnUiThread {
-                              Toast.makeText(ctx, "Saved to Downloads: $safeName", Toast.LENGTH_LONG).show()
+                              Toast.makeText(ctx, "Saved in Downloads: $safeName", Toast.LENGTH_LONG).show()
                           }
                       } catch (e: Exception) {
                           runOnUiThread {
-                              Toast.makeText(ctx, "Save error: ${e.message}", Toast.LENGTH_LONG).show()
+                              Toast.makeText(ctx, "Save failed: ${e.message}", Toast.LENGTH_LONG).show()
                           }
                       }
                   }
@@ -126,6 +133,8 @@ jobs:
                       domStorageEnabled = true
                       allowFileAccess = true
                       allowContentAccess = true
+                      allowFileAccessFromFileURLs = true
+                      allowUniversalAccessFromFileURLs = true
                       mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                   }
                   webView.addJavascriptInterface(AndroidDownloader(this), "AndroidDownloader")
@@ -138,11 +147,19 @@ jobs:
                       ): Boolean {
                           this@MainActivity.filePathCallback?.onReceiveValue(null)
                           this@MainActivity.filePathCallback = filePathCallback
-                          val intent = fileChooserParams?.createIntent() ?: Intent(Intent.ACTION_GET_CONTENT).apply {
+
+                          val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
                               addCategory(Intent.CATEGORY_OPENABLE)
                               type = "*/*"
+                              putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "application/pdf"))
                           }
-                          startActivityForResult(intent, 1001)
+                          try {
+                              startActivityForResult(Intent.createChooser(intent, "Select POD Image or PDF"), 1001)
+                          } catch (e: ActivityNotFoundException) {
+                              this@MainActivity.filePathCallback = null
+                              Toast.makeText(this@MainActivity, "No file manager found", Toast.LENGTH_SHORT).show()
+                              return false
+                          }
                           return true
                       }
                   }
@@ -164,7 +181,12 @@ jobs:
 
               override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
                   if (requestCode == 1001) {
-                      val results = if (resultCode == RESULT_OK && data?.data != null) arrayOf(data.data!!) else null
+                      val results: Array<Uri>? = when {
+                          resultCode != RESULT_OK || data == null -> null
+                          data.data != null -> arrayOf(data.data!!)
+                          data.clipData != null && data.clipData!!.itemCount > 0 -> arrayOf(data.clipData!!.getItemAt(0).uri)
+                          else -> null
+                      }
                       filePathCallback?.onReceiveValue(results)
                       filePathCallback = null
                   }
@@ -209,6 +231,10 @@ jobs:
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
+        with:
+          name: POD-Stamp-Sign-Pro-APK
+          path: extracted/PODStampSignProStudio-Android/app/build/outputs/apk/debug/*.apk
+          ct@v4
         with:
           name: POD-Stamp-Sign-Pro-APK
           path: extracted/PODStampSignProStudio-Android/app/build/outputs/apk/debug/*.apk
