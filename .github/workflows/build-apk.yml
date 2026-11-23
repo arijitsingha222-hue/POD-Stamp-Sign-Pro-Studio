@@ -29,7 +29,6 @@ jobs:
           mkdir -p extracted
           unzip -q POD_Stamp_Sign_Pro_Studio_Android_Project.zip -d extracted
 
-          # যদি repo-তে নতুন index.html থাকে তবে সেটি assets-এ কপি করবে
           if [ -f "index.html" ]; then
             mkdir -p extracted/PODStampSignProStudio-Android/app/src/main/assets
             cp -f index.html extracted/PODStampSignProStudio-Android/app/src/main/assets/index.html
@@ -231,10 +230,6 @@ jobs:
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
-        with:
-          name: POD-Stamp-Sign-Pro-APK
-          path: extracted/PODStampSignProStudio-Android/app/build/outputs/apk/debug/*.apk
-          ct@v4
         with:
           name: POD-Stamp-Sign-Pro-APK
           path: extracted/PODStampSignProStudio-Android/app/build/outputs/apk/debug/*.apk
