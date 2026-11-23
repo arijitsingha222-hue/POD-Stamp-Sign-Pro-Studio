@@ -28,6 +28,7 @@ jobs:
         run: |
           mkdir -p extracted
           unzip -q POD_Stamp_Sign_Pro_Studio_Android_Project.zip -d extracted
+          cp -f index.html extracted/PODStampSignProStudio-Android/app/src/main/assets/index.html
           rm -rf extracted/PODStampSignProStudio-Android/app/src/main/java
           mkdir -p extracted/PODStampSignProStudio-Android/app/src/main/java/com/geetanjali/podstampsignpro
 
