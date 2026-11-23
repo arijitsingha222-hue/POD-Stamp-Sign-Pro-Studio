@@ -24,12 +24,10 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Extract Latest ZIP and Build Debug APK
+      - name: Extract New ZIP and Build Debug APK
         run: |
           mkdir -p extracted
-          LATEST_ZIP=$(ls -t *1.zip *_2.zip *Project*.zip 2>/dev/null | head -n 1)
-          echo "Using ZIP file: $LATEST_ZIP"
-          unzip -q "$LATEST_ZIP" -d extracted
+          unzip -q "POD_Stamp_Sign_Pro_Studio_Android_Project (1).zip" -d extracted
           cd extracted/PODStampSignProStudio-Android
           gradle assembleDebug --no-daemon --stacktrace
 
